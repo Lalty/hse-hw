@@ -1,0 +1,64 @@
+## 3. Avito (30 баллов)
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+
+HEADERS = {
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.129 Safari/537.36 OPR/68.0.3618.91',
+    'accept': '*/*'}
+HOST = 'https://www.avito.ru'
+
+
+def parse_page(search, page):
+    URL = HOST + '/moskva?q=' + search + '&p=' + str(page)
+
+    def get_html(url, params=None):
+        r = requests.get(url, headers=HEADERS, params=params)
+        return r
+
+    def get_content(html):
+        soup = BeautifulSoup(html, 'html.parser')
+        items = soup.find_all('div', class_='item_table-wrapper')
+
+        name_of_sale = []
+        for item in items:
+            rastoyanie = item.find('span', class_='item-address-georeferences-item__after')
+            if rastoyanie:
+                rastoyanie = rastoyanie.get_text().replace('\xa0', '')
+            else:
+                rastoyanie = 'не указано'
+            metro = item.find('span', class_='item-address-georeferences-item__content')
+            if metro:
+                metro = metro.get_text(strip=True)
+            else:
+                metro = 'не указано'
+            price = item.find('span', class_='snippet-price').get_text(strip=True)
+            try:
+                price = price.replace('  ₽', '')
+                value = int(price.replace(' ', ''))
+            except SyntaxError:
+                value = 'None'
+            except ValueError:
+                value = 'None'
+            
+            name_of_sale.append({
+                'название объявления': item.find('a', class_='snippet-link').get_text(strip=True),
+                'ссылка на объявление': HOST + item.find('a', class_='snippet-link').get('href'),
+                'цена': value,
+                'метро': metro,
+                'расстояние от метро': rastoyanie
+            })
+            df3 = pd.DataFrame(name_of_sale)
+            pd.set_option('display.max_colwidth',1000)
+        print(df3)
+
+    def parse():
+        html = get_html(URL)
+        if html.status_code == 200:
+            get_content(html.text)
+        else:
+            print('Error')
+
+    return parse()
+
+parse_page('картошка', 0)
